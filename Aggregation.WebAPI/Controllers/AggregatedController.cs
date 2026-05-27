@@ -22,16 +22,48 @@ namespace Aggregation.WebAPI.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<AggregatedDto>> GetAggregatedData([FromQuery] double? lat, [FromQuery] double? lon)
+        public async Task<ActionResult<AggregatedDto>> GetAggregatedData(
+            [FromQuery] double? lat = null, [FromQuery] double? lon = null,
+            [FromQuery] string? category = null,
+            [FromQuery] string? sortBy = null,
+            [FromQuery] string? sortOrder = "asc")
         {
             double finalLat = lat ?? 37.98; // Default Latitude
             double finalLon = lon ?? 23.72; // Default Longitude
 
             var aggregatedData = new AggregatedDto();
+
             var productsTask = FetchProductsAsync(aggregatedData);
             var weatherTask = FetchWeatherForecastAsync(aggregatedData, finalLat, finalLon);
 
             await Task.WhenAll(productsTask, weatherTask);
+
+            // Filtering with category
+            if (!string.IsNullOrWhiteSpace(category) && aggregatedData.Products != null && aggregatedData.Products.Any())
+            {
+                aggregatedData.Products = aggregatedData.Products
+                    .Where(p => p.Category != null && p.Category.Equals(category, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+            }
+
+            // Sorting with price, or title
+            if (!string.IsNullOrWhiteSpace(sortBy) && aggregatedData.Products != null && aggregatedData.Products.Any())
+            {
+                bool isDescending = !string.IsNullOrWhiteSpace(sortOrder) && sortOrder.Equals("desc", StringComparison.OrdinalIgnoreCase);
+
+                if (sortBy.Equals("price", StringComparison.OrdinalIgnoreCase))
+                {
+                    aggregatedData.Products = isDescending
+                        ? aggregatedData.Products.OrderByDescending(p => p.Price).ToList()
+                        : aggregatedData.Products.OrderBy(p => p.Price).ToList();
+                }
+                else if (sortBy.Equals("title", StringComparison.OrdinalIgnoreCase))
+                {
+                    aggregatedData.Products = isDescending
+                        ? aggregatedData.Products.OrderByDescending(p => p.Title).ToList()
+                        : aggregatedData.Products.OrderBy(p => p.Title).ToList();
+                }
+            }
 
             return Ok(aggregatedData);
         }
