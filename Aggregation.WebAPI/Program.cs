@@ -1,6 +1,7 @@
 using Aggregation.WebAPI;
 using Aggregation.WebAPI.Modules.Products;
 using Aggregation.WebAPI.Modules.Weather;
+using Aggregation.WebAPI.Statistics;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -46,6 +47,8 @@ builder.Services.AddHttpClient<IWeatherService, WeatherService>(client =>
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+builder.Services.AddSingleton<IStatisticsService, StatisticsService>();
 
 var app = builder.Build();
 
