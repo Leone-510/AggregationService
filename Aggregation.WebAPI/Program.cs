@@ -1,4 +1,5 @@
 using Aggregation.WebAPI;
+using Aggregation.WebAPI.Modules.Countries;
 using Aggregation.WebAPI.Modules.Products;
 using Aggregation.WebAPI.Modules.Weather;
 using Aggregation.WebAPI.Statistics;
@@ -12,6 +13,21 @@ builder.Services.AddMemoryCache();
 
 #region External API Services
 builder.Services.Configure<ExternalApiOptions>(builder.Configuration.GetSection("ExternalApis"));
+
+string countriesUrl = builder.Configuration["ExternalApis:CountriesApiUrl"]
+    ?? throw new InvalidOperationException("Countries API URL is missing in config.");
+builder.Services.AddHttpClient<ICountryService, CountryService>(client =>
+{
+    client.BaseAddress = new Uri(countriesUrl);
+    client.DefaultRequestHeaders.Add("Accept", "application/json");
+    client.Timeout = TimeSpan.FromSeconds(10);
+}).AddStandardResilienceHandler(options =>
+{
+    options.Retry.MaxRetryAttempts = 3;
+    options.Retry.Delay = TimeSpan.FromSeconds(1);
+    options.Retry.BackoffType = Polly.DelayBackoffType.Exponential;
+    options.AttemptTimeout.Timeout = TimeSpan.FromSeconds(3);
+});
 
 string productsUrl = builder.Configuration["ExternalApis:ProductsApiUrl"] 
     ?? throw new InvalidOperationException("Products API URL is missing in config.");

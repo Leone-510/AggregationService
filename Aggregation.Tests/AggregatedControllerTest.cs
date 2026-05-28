@@ -1,5 +1,7 @@
 ﻿using Aggregation.WebAPI.Controllers;
 using Aggregation.WebAPI.DTOs;
+using Aggregation.WebAPI.Modules.Countries;
+using Aggregation.WebAPI.Modules.Countries.DTOs;
 using Aggregation.WebAPI.Modules.Products;
 using Aggregation.WebAPI.Modules.Products.DTOs;
 using Aggregation.WebAPI.Modules.Weather;
@@ -12,6 +14,7 @@ namespace Aggregation.Tests
 {
     public class AggregatedControllerTest
     {
+        private readonly Mock<ICountryService> _countriesServiceMock;
         private readonly Mock<IProductsService> _productsServiceMock;
         private readonly Mock<IWeatherService> _weatherServiceMock;
         private readonly Mock<ILogger<AggregatedController>> _loggerMock;
@@ -19,12 +22,13 @@ namespace Aggregation.Tests
 
         public AggregatedControllerTest()
         {
+            _countriesServiceMock = new Mock<ICountryService>();
             _productsServiceMock = new Mock<IProductsService>();
             _weatherServiceMock = new Mock<IWeatherService>();
             _loggerMock = new Mock<ILogger<AggregatedController>>();
 
-            _controller = new AggregatedController(
-                _productsServiceMock.Object, _weatherServiceMock.Object, _loggerMock.Object);
+            _controller = new AggregatedController(_countriesServiceMock.Object, _productsServiceMock.Object, 
+                _weatherServiceMock.Object, _loggerMock.Object);
         }
 
         [Fact]
@@ -32,23 +36,42 @@ namespace Aggregation.Tests
         {
             var testProducts = new List<ProductDto> { new ProductDto { Id = 1, Title = "Test Product" } };
             var testWeather = new WeatherForecastDto { Latitude = 37.98, Longitude = 23.72 };
+            var testCountries = new List<CountryDto>
+            {
+                new CountryDto
+                {
+                    Name = new CountryName
+                    {
+                        Common = "CommonName",
+                        Official = "OfficialName",
+                        NativeName = new Dictionary<string, NativeNameInfo> { { "KEY", new NativeNameInfo { Official = "Official", Common = "Common" } } }
+                    },
+                    Currencies = new Dictionary<string, CurrencyInfo>
+                    {
+                        { "XCD", new CurrencyInfo { Name = "Eastern Caribbean dollar", Symbol = "$" } }
+                    },
+                    Capital = new List<string> { "Capital" }
+                }
+            };
 
             // Mocks return test data
             _productsServiceMock.Setup(s => s.GetExternalProductsAsync()).ReturnsAsync(testProducts);
             _weatherServiceMock.Setup(s => s.GetExternalWeatherCurrentAsync(It.IsAny<double>(), It.IsAny<double>())).ReturnsAsync(testWeather);
+            _countriesServiceMock.Setup(c => c.GetExternalCountriesAsync()).ReturnsAsync(testCountries);
 
             // Act for Controller method
             var result = await _controller.GetAggregatedData(37.98, 23.72);
 
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result.Result);
-            var dashboard = Assert.IsType<AggregatedDto>(okResult.Value);
+            var aggregated = Assert.IsType<AggregatedDto>(okResult.Value);
 
-            Assert.NotNull(dashboard.Products);
-            Assert.Single(dashboard.Products);          // Confirmation for Product
-            Assert.Equal("Test Product", dashboard.Products[0].Title);
-            Assert.NotNull(dashboard.WeatherForecast);
-            Assert.Empty(dashboard.SystemWarnings);     // Should not have any warnings
+            Assert.NotNull(aggregated.Products);
+            Assert.Single(aggregated.Products);          // Confirmation for Product
+            Assert.Equal("Test Product", aggregated.Products[0].Title);
+            Assert.NotNull(aggregated.WeatherForecast);
+            Assert.NotNull(aggregated.Countries);
+            Assert.Empty(aggregated.SystemWarnings);     // Should not have any warnings
         }
 
         [Fact]
@@ -57,8 +80,27 @@ namespace Aggregation.Tests
             var testProducts = new List<ProductDto> { new ProductDto { Id = 1, Title = "Test Product" } };
             _productsServiceMock.Setup(s => s.GetExternalProductsAsync()).ReturnsAsync(testProducts);
 
+            var testCountries = new List<CountryDto>
+            {
+                new CountryDto
+                {
+                    Name = new CountryName
+                    {
+                        Common = "CommonName",
+                        Official = "OfficialName",
+                        NativeName = new Dictionary<string, NativeNameInfo> { { "KEY", new NativeNameInfo { Official = "Official", Common = "Common" } } }
+                    },
+                    Currencies = new Dictionary<string, CurrencyInfo>
+                    {
+                        { "XCD", new CurrencyInfo { Name = "Eastern Caribbean dollar", Symbol = "$" } }
+                    },
+                    Capital = new List<string> { "Capital" }
+                }
+            };
+            _countriesServiceMock.Setup(c => c.GetExternalCountriesAsync()).ReturnsAsync(testCountries);
+
             _weatherServiceMock.Setup(s => s.GetExternalWeatherCurrentAsync(It.IsAny<double>(), It.IsAny<double>()))
-                .ThrowsAsync(new System.Net.Http.HttpRequestException("API Offline"));
+                .ThrowsAsync(new HttpRequestException("API Offline"));
 
             var result = await _controller.GetAggregatedData(37.98, 23.72);
 
@@ -66,7 +108,8 @@ namespace Aggregation.Tests
             var okResult = Assert.IsType<OkObjectResult>(result.Result);
             var aggregated = Assert.IsType<AggregatedDto>(okResult.Value);
 
-            // API should return 200 OK for Products, but NULL Weather and WARNING!
+            // API should return 200 OK for Products and Countries, but NULL Weather and WARNING!
+            Assert.NotNull(aggregated.Countries);
             Assert.NotNull(aggregated.Products);
             Assert.Single(aggregated.Products);
             Assert.Null(aggregated.WeatherForecast);    // Weather failed, so it is null

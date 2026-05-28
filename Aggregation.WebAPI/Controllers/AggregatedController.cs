@@ -1,4 +1,6 @@
 ﻿using Aggregation.WebAPI.DTOs;
+using Aggregation.WebAPI.Modules.Countries;
+using Aggregation.WebAPI.Modules.Countries.DTOs;
 using Aggregation.WebAPI.Modules.Products;
 using Aggregation.WebAPI.Modules.Products.DTOs;
 using Aggregation.WebAPI.Modules.Weather;
@@ -10,12 +12,15 @@ namespace Aggregation.WebAPI.Controllers
     [Route("api/aggregated")]
     public class AggregatedController : ControllerBase
     {
+        private readonly ICountryService _countryService;
         private readonly IProductsService _productsService;
         private readonly IWeatherService _weatherService;
         private readonly ILogger<AggregatedController> _logger;
 
-        public AggregatedController(IProductsService productsService, IWeatherService weatherService, ILogger<AggregatedController> logger)
+        public AggregatedController(ICountryService countryService, IProductsService productsService, IWeatherService weatherService, 
+            ILogger<AggregatedController> logger)
         {
+            _countryService = countryService;
             _productsService = productsService;
             _weatherService = weatherService;
             _logger = logger;
@@ -35,10 +40,11 @@ namespace Aggregation.WebAPI.Controllers
 
             var productsTask = FetchProductsAsync(aggregatedData);
             var weatherTask = FetchWeatherForecastAsync(aggregatedData, finalLat, finalLon);
+            var countriesTask = FetchCountriesAsync(aggregatedData);
 
-            await Task.WhenAll(productsTask, weatherTask);
+            await Task.WhenAll(productsTask, weatherTask, countriesTask);
 
-            // Filtering with category
+            // Filtering with Product category
             if (!string.IsNullOrWhiteSpace(category) && aggregatedData.Products != null && aggregatedData.Products.Any())
             {
                 aggregatedData.Products = aggregatedData.Products
@@ -46,7 +52,7 @@ namespace Aggregation.WebAPI.Controllers
                     .ToList();
             }
 
-            // Sorting with price, or title
+            // Sorting with Product price, or title
             if (!string.IsNullOrWhiteSpace(sortBy) && aggregatedData.Products != null && aggregatedData.Products.Any())
             {
                 bool isDescending = !string.IsNullOrWhiteSpace(sortOrder) && sortOrder.Equals("desc", StringComparison.OrdinalIgnoreCase);
@@ -69,6 +75,21 @@ namespace Aggregation.WebAPI.Controllers
         }
 
         #region Safe data wrappers
+        private async Task FetchCountriesAsync(AggregatedDto aggregatedData)
+        {
+            try
+            {
+                aggregatedData.Countries = await _countryService.GetExternalCountriesAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to retrieve countries data from Rest Countries API.");
+
+                aggregatedData.Countries = new List<CountryDto>();
+                aggregatedData.SystemWarnings.Add("Countries data are temporarily unavailable.");
+            }
+        }
+
         private async Task FetchProductsAsync(AggregatedDto aggregatedData)
         {
             try
