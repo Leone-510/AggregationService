@@ -4,5 +4,6 @@
     {
         public string ProductsApiUrl { get; set; } = string.Empty;
         public string WeatherApiUrl { get; set; } = string.Empty;
+        public string CountriesApiUrl { get; set; } = string.Empty;
     }
 }
