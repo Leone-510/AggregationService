@@ -11,7 +11,8 @@ The application configuration manages environment urls for external dependencies
 {
   "ExternalApis": {
     "ProductsApiUrl": "https://fakestoreapi.com",
-    "WeatherApiUrl": "https://api.open-meteo.com"
+    "WeatherApiUrl": "https://api.open-meteo.com",
+    "CountriesApiUrl": "https://restcountries.com"
   }
 }
 
@@ -27,7 +28,7 @@ The application configuration manages environment urls for external dependencies
 
 **Endpoint A: Unified Aggregated Data**
 
-Consolidates real-time weather details and commercial product catalogs concurrently in parallel using specialized in-memory caching and resilience handling.
+Consolidates real-time weather details, commercial product catalogs, and countries information data concurrently in parallel using specialized in-memory caching and resilience handling.
 
 **URL:** 
 /api/aggregated
@@ -44,11 +45,55 @@ GET
 
 **📥 Sample Request String**
 
+GET https://localhost:7120/api/aggregated
+
 GET https://localhost:7120/api/aggregated?lat=37.98&lon=23.72&category=electronics&sortBy=price&sortOrder=desc
 
 **📤 Sample Output Payload (200 OK) - json**
 
 {
+"countries": [
+  {
+    "name": {
+      "common": "Anguilla",
+      "official": "Anguilla",
+      "nativeName": {
+        "eng": {
+          "official": "Anguilla",
+          "common": "Anguilla"
+          }
+        }
+      },
+      "currencies": {
+        "XCD": {
+          "name": "Eastern Caribbean dollar",
+          "symbol": "$"
+          }
+            },
+            "capital": ["The Valley"]
+        },
+        {
+            "name": {
+                "common": "Guatemala",
+                "official": "Republic of Guatemala",
+                "nativeName": {
+                    "spa": {
+                        "official": "República de Guatemala",
+                        "common": "Guatemala"
+                    }
+                }
+            },
+            "currencies": {
+                "GTQ": {
+                    "name": "Guatemalan quetzal",
+                    "symbol": "Q"
+                }
+            },
+            "capital": [
+                "Guatemala City"
+            ]
+        }
+  ],
   "products": [
         {
             "id": 1,
@@ -112,20 +157,27 @@ GET https://localhost:7120/api/statistics
 **📤 Sample Output Payload (200 OK) - json**
 
 {
-    "Weather_Api": {
-        "totalRequests": 5,
-        "averageResponseTimeMs": 233.8,
-        "fastRequestsCount": 2,
-        "averageRequestsCount": 1,
-        "slowRequestsCount": 2
-    },
-    "Products_Api": {
-        "totalRequests": 5,
-        "averageResponseTimeMs": 281.8,
-        "fastRequestsCount": 3,
-        "averageRequestsCount": 0,
-        "slowRequestsCount": 2
-    }
+  "Weather_Api": {
+    "totalRequests": 6,
+    "averageResponseTimeMs": 1515.17,
+    "fastRequestsCount": 4,
+    "averageRequestsCount": 1,
+    "slowRequestsCount": 1
+  },
+  "Countries_Api": {
+    "totalRequests": 6,
+    "averageResponseTimeMs": 174.33,
+    "fastRequestsCount": 5,
+    "averageRequestsCount": 0,
+    "slowRequestsCount": 1
+  },
+  "Products_Api": {
+    "totalRequests": 6,
+    "averageResponseTimeMs": 60.17,
+    "fastRequestsCount": 5,
+    "averageRequestsCount": 0,
+    "slowRequestsCount": 1
+  }
 }
 
 
